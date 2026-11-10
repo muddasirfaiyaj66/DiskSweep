@@ -1,0 +1,75 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "disksweep"
+dynamic = ["version"]
+description = "Safe, transparent disk cleanup for Windows: temp files, caches, dev caches, duplicates and a disk analyzer."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "DiskSweep contributors" }]
+keywords = ["disk", "cleanup", "windows", "cache", "duplicates", "storage"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: Win32 (MS Windows)",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Filesystems",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "psutil>=5.9",
+    "send2trash>=1.8",
+    "customtkinter>=5.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "pyinstaller>=6.6",
+    "pillow>=10",  # tools/capture_screenshots.py
+]
+
+[project.scripts]
+disksweep = "disksweep.cli:main"
+
+[project.gui-scripts]
+disksweep-gui = "disksweep.gui.app:main"
+
+[project.urls]
+Homepage = "https://github.com/muddasirfaiyaj66/DiskSweep"
+Issues = "https://github.com/muddasirfaiyaj66/DiskSweep/issues"
+Changelog = "https://github.com/muddasirfaiyaj66/DiskSweep/blob/main/CHANGELOG.md"
+
+[tool.hatch.version]
+path = "src/disksweep/version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/disksweep"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["RUF012", "SIM112"]  # SIM112: Windows env var names are case-insensitive
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

@@ -1,0 +1,51 @@
+name: Bug report
+description: Something did not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **If DiskSweep deleted something it should not have, please
+        follow [SECURITY.md](../../SECURITY.md) instead** - that is treated as a security issue.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command or GUI steps
+      placeholder: disksweep clean --profile developer --apply
+      render: shell
+  - type: textarea
+    id: output
+    attributes:
+      label: Output / error
+      description: Paste the output with `-vv`. Remove any personal paths you do not want to share.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: DiskSweep version
+      placeholder: disksweep --version
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options: [Release .exe, pip, From source]
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 23H2
+  - type: checkboxes
+    id: admin
+    attributes:
+      label: Elevation
+      options:
+        - label: I was running as administrator

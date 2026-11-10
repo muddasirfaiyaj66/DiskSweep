@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a safety / security problem
+    url: https://github.com/muddasirfaiyaj66/DiskSweep/security/advisories/new
+    about: DiskSweep deleted or could delete something it should not. Please report privately.

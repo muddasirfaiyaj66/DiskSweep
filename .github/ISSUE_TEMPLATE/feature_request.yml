@@ -1,0 +1,25 @@
+name: Feature request / new cleanup target
+description: Suggest an improvement or a new thing DiskSweep could clean
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: For a new cleanup target, include the exact folder(s) or command, and how you know it is safe to delete.
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Suggested risk level (for new targets)
+      options: [safe, moderate, advanced, not applicable]
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Vendor documentation confirming the data is regenerable, if available.

@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "ruff>=0.6"
+      - run: ruff check .
+      - run: ruff format --check .
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e ".[dev]"
+      - run: pytest -q --cov=disksweep --cov-report=term-missing
+
+  build:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [lint, test]
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pyinstaller --clean --noconfirm disksweep.spec
+      - name: Smoke test the executable
+        run: |
+          dist\disksweep-cli.exe --version
+          dist\disksweep-cli.exe targets
+        shell: cmd
+      - name: Checksums
+        run: Get-FileHash dist\*.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Out-File -Encoding ascii dist\SHA256SUMS.txt
+        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: disksweep-windows
+          path: dist/*
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/DiskSweep.exe
+            dist/disksweep-cli.exe
+            dist/SHA256SUMS.txt
+          generate_release_notes: true
