@@ -8,8 +8,8 @@ shows you where the space went and gets it back without touching your personal f
 - Cleans browser caches (Chrome, Edge, Firefox, Brave) and developer caches (npm, Yarn, pnpm,
   pip, NuGet, Gradle, Maven, Cargo, Docker, WSL virtual disks)
 - Runs advanced system cleanup: DISM component store, hibernation file, shadow-copy storage
-- Includes a fast parallel **disk analyzer**, a **duplicate finder** and a **large/old file finder**
-- Has a command-line tool and a GUI (dark and light themes), both built on the same core library
+- Includes a fast parallel **disk analyzer** with charts (largest subfolders with click-to-drill-down, and space by file type), a **duplicate finder** and a **large/old file finder**
+- Has a command-line tool and a modern GUI (sidebar navigation, summary cards, dark and light themes), both built on the same core library
 - Can schedule cleanups with Windows Task Scheduler
 - **Dry run by default**, audit log of every deleted file, no telemetry
 
@@ -21,7 +21,7 @@ These screenshots show the full cleanup flow, captured from the real GUI running
 demo machine (sparse files that use no disk space). Regenerate them with
 `python tools/capture_screenshots.py`.
 
-**1. Start**: drive usage and the target checklist, before anything is measured.
+**1. Start**: summary cards (drive-usage ring, reclaimable, selected) and the target checklist grouped by category.
 
 ![Dashboard on launch](docs/screenshots/01-dashboard-start.png)
 
@@ -56,19 +56,32 @@ are called out.
 
 ![After cleanup](docs/screenshots/08-after-cleanup.png)
 
-**9. Analyzer**: the largest folders and files, with JSON/CSV export.
+**9. Analyzer charts**: the largest subfolders and the space taken by each file type.
 
-![Analyzer](docs/screenshots/09-analyzer.png)
+![Analyzer charts](docs/screenshots/09-analyzer-charts.png)
 
-**10. Audit log**: every deleted path, with its size.
+**10. Hover for details**: the exact size, its share of the total, and a hint to click.
 
-![Audit log](docs/screenshots/10-audit-log.png)
+![Analyzer hover](docs/screenshots/10-analyzer-hover.png)
+
+**11. Tables view**: the same results as exact numbers. Double-click a row to open it in
+Explorer; JSON/CSV export is in the toolbar.
+
+![Analyzer tables](docs/screenshots/11-analyzer-tables.png)
+
+**12. Drill down**: click a bar to look inside that folder; **Up** goes back.
+
+![Analyzer drill-down](docs/screenshots/12-analyzer-drilldown.png)
+
+**13. Audit log**: every deleted path, with its size.
+
+![Audit log](docs/screenshots/13-audit-log.png)
 
 **Light theme**
 
 | Dashboard | Analyzer |
 |-----------|----------|
-| ![Dashboard, light](docs/screenshots/11-dashboard-light.png) | ![Analyzer, light](docs/screenshots/12-analyzer-light.png) |
+| ![Dashboard, light](docs/screenshots/14-dashboard-light.png) | ![Analyzer, light](docs/screenshots/15-analyzer-light.png) |
 
 ---
 

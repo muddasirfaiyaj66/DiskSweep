@@ -262,6 +262,12 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     print(_table([[human_size(e.bytes), e.path] for e in res.top_dirs], ["SIZE", "PATH"]))
     print("\nLargest files:")
     print(_table([[human_size(e.bytes), e.path] for e in res.top_files], ["SIZE", "PATH"]))
+    if res.by_type:
+        print("\nSpace by file type:")
+        total = res.total_bytes or 1
+        rows = [[human_size(t.bytes), f"{t.bytes / total:.0%}", f"{t.files:,}", t.ext]
+                for t in res.by_type]  # fmt: skip
+        print(_table(rows, ["SIZE", "SHARE", "FILES", "TYPE"]))
     if res.errors:
         print(f"\n{len(res.errors)} folders could not be read (access denied / in use).")
     for path, kind in ((args.json, "JSON"), (args.csv, "CSV")):

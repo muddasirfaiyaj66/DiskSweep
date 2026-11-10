@@ -21,6 +21,7 @@ class DismComponentCleanup(CommandTarget):
     )
     risk = Risk.ADVANCED
     requires_admin = True
+    category = "advanced"
     executable = "dism"
     command = ("dism.exe", "/Online", "/Cleanup-Image", "/StartComponentCleanup")
 
@@ -39,6 +40,7 @@ class HibernationOff(CommandTarget):
     )
     risk = Risk.ADVANCED
     requires_admin = True
+    category = "advanced"
     executable = "powercfg"
     command = ("powercfg.exe", "/hibernate", "off")
 
@@ -74,6 +76,7 @@ class ShadowStorageResize(CommandTarget):
     )
     risk = Risk.ADVANCED
     requires_admin = True
+    category = "advanced"
     executable = "vssadmin"
     max_size = "5%"
 

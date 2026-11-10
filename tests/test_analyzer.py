@@ -75,4 +75,35 @@ def test_export(tree: Path, tmp_path: Path) -> None:
     with (tmp_path / "r.csv").open(newline="") as fh:
         rows = list(csv.reader(fh))
     assert rows[0] == ["kind", "path", "bytes"]
-    assert {r[0] for r in rows[1:]} == {"folder", "file"}
+    assert {r[0] for r in rows[1:]} == {"folder", "file", "type"}
+
+
+def test_space_by_file_type(tree: Path) -> None:
+    res = analyze(str(tree))
+    by = {t.ext: (t.bytes, t.files) for t in res.by_type}
+    assert by == {".bin": (8100, 3), ".txt": (10, 1)}
+    assert sum(t.bytes for t in res.by_type) == res.total_bytes
+
+
+def test_top_types_folds_remainder_into_other() -> None:
+    from disksweep.analyzer import OTHER_TYPES, top_types
+
+    totals = {f".e{i}": [100 - i, 1] for i in range(12)}
+    out = top_types(totals, n=8)
+    assert len(out) == 9 and out[-1].ext == OTHER_TYPES
+    assert out[-1].bytes == sum(100 - i for i in range(8, 12)) and out[-1].files == 4
+    assert [t.ext for t in out[:2]] == [".e0", ".e1"]
+
+
+def test_file_type_labels() -> None:
+    from disksweep.analyzer import NO_EXTENSION, file_type
+
+    assert file_type("Movie.MKV") == ".mkv"
+    assert file_type("Makefile") == NO_EXTENSION
+    assert file_type(".bashrc") == NO_EXTENSION
+
+
+def test_direct_children_for_drill_down(tree: Path) -> None:
+    res = analyze(str(tree))
+    assert [(Path(e.path).name, e.bytes) for e in res.children] == [("big", 8000), ("small", 10)]
+    assert res.root_files_bytes == 100

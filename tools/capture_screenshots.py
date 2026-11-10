@@ -22,7 +22,6 @@ import random
 import shutil
 import sys
 import tempfile
-import threading
 import time
 from ctypes import wintypes
 from pathlib import Path
@@ -346,7 +345,6 @@ def run(out: Path) -> list[Path]:
 
     from disksweep.gui import app as gui_app
     from disksweep.gui import dashboard as dmod
-    from disksweep.gui.analyzer_tab import AnalyzerTab
 
     # Slow the real scan/clean slightly so the progress states can be captured.
     orig_scan, orig_clean = dmod.scan_targets, dmod.clean_targets
@@ -386,9 +384,8 @@ def run(out: Path) -> list[Path]:
                 return hit
         return None
 
-    dash = find(win, dmod.Dashboard)
-    analyzer = find(win, AnalyzerTab)
-    tabs = find(win, ctk.CTkTabview)
+    dash = win.dashboard
+    analyzer = win.analyzer
     scans = {"n": 0}
     orig_done = dash._scan_done
 
@@ -412,25 +409,34 @@ def run(out: Path) -> list[Path]:
         win.update()
         save(capture_hwnd(hwnd())[0], name)
 
-    def dialogs() -> None:
-        """Runs in a helper thread while the main thread sits in a modal dialog."""
-        d = wait_for_window("Confirm cleanup")
-        time.sleep(0.6)
-        dlg = capture_hwnd(d)
-        save(composite(capture_hwnd(hwnd()), dlg), "05-confirm-cleanup")
-        press(d, IDYES)
-        d = wait_for_window("Cleanup complete", timeout=300)
-        time.sleep(0.6)
-        dlg = capture_hwnd(d)
-        save(composite(capture_hwnd(hwnd()), dlg), "07-cleanup-complete")
-        press(d, IDOK)
+    def dialog_open(title: str) -> bool:
+        d = dash.active_dialog
+        return d is not None and d.winfo_exists() and d.winfo_viewable() and d.title() == title
+
+    def shot_dialog(name: str) -> None:
+        """Main window (dimmed) with the in-app dialog at its real position."""
+        win.update_idletasks()
+        win.update()
+        d = dash.active_dialog
+        assert d is not None
+        save(composite(capture_hwnd(hwnd()), capture_hwnd(int(d.wm_frame(), 16))), name)
+
+    def close_dialog(choice: str) -> None:
+        d = dash.active_dialog
+        assert d is not None
+        win.after(0, lambda: d.close(choice))
 
     def scroll(fraction: float) -> None:
         dash.list_frame._parent_canvas.yview_moveto(fraction)
 
-    def start_clean() -> None:
-        threading.Thread(target=dialogs, daemon=True).start()
-        dash.confirm_clean()  # blocks in the modal dialog until the helper answers
+    def hover(chart, index):  # type: ignore[no-untyped-def]
+        """Simulate the pointer resting on a bar (index None = pointer left)."""
+        if index is None:
+            chart._set_hover(None)
+            return
+        top, bottom = chart._rows[index]
+        chart._mouse = (int(chart.winfo_width() * 0.45), (top + bottom) // 2)
+        chart._set_hover(index)
 
     steps: list[tuple[str, object]] = [
         ("sleep", 800),
@@ -446,32 +452,56 @@ def run(out: Path) -> list[Path]:
         ("sleep", 300),
         ("shot", "04-developer-profile"),
         ("do", lambda: scroll(0.0)),
-        ("do", start_clean),
+        ("do", lambda: win.after(0, dash.confirm_clean)),  # opens a modal; don't block
+        ("wait", lambda: dialog_open("Confirm cleanup")),
+        ("sleep", 600),
+        ("call", lambda: shot_dialog("05-confirm-cleanup")),
+        ("do", lambda: close_dialog("Clean now")),
         (
             "wait",
             lambda: dash.status.cget("text").startswith("Cleaned") and dash.progress.get() >= 0.45,
         ),
         ("shot", "06-cleaning"),
+        ("wait", lambda: dialog_open("Cleanup complete")),
+        ("sleep", 600),
+        ("call", lambda: shot_dialog("07-cleanup-complete")),
+        ("do", lambda: close_dialog("Done")),
         ("wait", lambda: scans["n"] >= 2),
         ("sleep", 300),
         ("shot", "08-after-cleanup"),
-        ("do", lambda: tabs.set("Analyzer")),
+        ("do", lambda: win.show_page("Analyzer")),
         ("do", lambda: (analyzer.path_var.set(str(demo_root)), analyzer.start())),
         ("wait", lambda: analyzer.result is not None),
         ("sleep", 300),
-        ("shot", "09-analyzer"),
-        ("do", lambda: (tabs.set("Audit log"), win.log_tab.refresh())),
+        ("shot", "09-analyzer-charts"),
+        ("do", lambda: hover(analyzer.folder_chart, 1)),
         ("sleep", 300),
-        ("shot", "10-audit-log"),
+        ("shot", "10-analyzer-hover"),
+        ("do", lambda: hover(analyzer.folder_chart, None)),
+        ("do", lambda: (analyzer.view_var.set("Tables"), analyzer.show_view("Tables"))),
+        ("sleep", 300),
+        ("shot", "11-analyzer-tables"),
+        ("do", lambda: (analyzer.view_var.set("Charts"), analyzer.show_view("Charts"))),
+        ("do", lambda: setattr(analyzer, "result", None)),
+        ("do", lambda: analyzer.drill_down(analyzer.folder_chart.bars[0].key)),
+        ("wait", lambda: analyzer.result is not None),
+        ("sleep", 300),
+        ("shot", "12-analyzer-drilldown"),
+        ("do", lambda: win.show_page("Audit log")),
+        ("sleep", 300),
+        ("shot", "13-audit-log"),
         ("do", lambda: (win.theme_var.set("Light"), win.set_theme("Light"))),
-        ("do", lambda: tabs.set("Dashboard")),
+        ("do", lambda: win.show_page("Dashboard")),
         ("do", lambda: (dash.profile_var.set("Safe"), dash.apply_profile("safe"))),
         ("do", lambda: scroll(0.0)),
         ("sleep", 600),
-        ("shot", "11-dashboard-light"),
-        ("do", lambda: tabs.set("Analyzer")),
-        ("sleep", 400),
-        ("shot", "12-analyzer-light"),
+        ("shot", "14-dashboard-light"),
+        ("do", lambda: win.show_page("Analyzer")),
+        ("do", lambda: setattr(analyzer, "result", None)),
+        ("do", lambda: analyzer.go_up_to(str(demo_root))),
+        ("wait", lambda: analyzer.result is not None),
+        ("sleep", 500),
+        ("shot", "15-analyzer-light"),
         ("do", win.destroy),
     ]
     state = {"i": 0, "deadline": 0.0}
@@ -492,6 +522,8 @@ def run(out: Path) -> list[Path]:
                 return
             elif kind == "shot":
                 shot(str(arg))
+            elif kind == "call":
+                arg()  # type: ignore[operator]
             elif kind == "do":
                 state["i"] += 1
                 state["deadline"] = time.monotonic() + 300

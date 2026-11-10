@@ -6,7 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-10
+
+### Changed
+- Redesigned GUI: sidebar navigation, summary cards (drive-usage ring, reclaimable,
+  selected), targets grouped by category with tinted risk badges and relative-size bars,
+  in-app confirmation and result dialogs, and the audit log shown as a table.
+  Shared design tokens in `gui/theme.py`; text and button colors meet WCAG 4.5:1 in
+  light and dark themes.
+- DISM cleanup, hibernation and shadow-storage targets now have their own *advanced* category.
+
 ### Added
+- Analyzer charts: a *Largest subfolders* bar chart (click a bar to drill down, **Up** to go
+  back) and a *Space by file type* chart, with hover tooltips and a Charts/Tables toggle.
+- `disksweep analyze` prints a *Space by file type* table; JSON/CSV exports include file types.
 - `tools/capture_screenshots.py` and a 12-step GUI screenshot walkthrough in the README.
 
 ## [1.0.0] - 2026-11-10

@@ -35,6 +35,36 @@ class Entry:
 
 
 @dataclass
+class TypeEntry:
+    """Total size and count of files sharing an extension (e.g. ``.iso``)."""
+
+    ext: str
+    bytes: int
+    files: int
+
+
+NO_EXTENSION = "(no extension)"
+OTHER_TYPES = "Other"
+
+
+def file_type(name: str) -> str:
+    """Lower-cased extension of a file name, or :data:`NO_EXTENSION`."""
+    ext = os.path.splitext(name)[1].lower()
+    return ext if ext and len(ext) <= 12 else NO_EXTENSION
+
+
+def top_types(totals: dict[str, list[int]], n: int = 8) -> list[TypeEntry]:
+    """The ``n`` largest types, with the remainder folded into one "Other" entry."""
+    ranked = sorted(totals.items(), key=lambda kv: kv[1][0], reverse=True)
+    head = [TypeEntry(ext, b, c) for ext, (b, c) in ranked[:n]]
+    rest = ranked[n:]
+    if rest:
+        head.append(TypeEntry(OTHER_TYPES, sum(v[0] for _, v in rest),
+                              sum(v[1] for _, v in rest)))  # fmt: skip
+    return head
+
+
+@dataclass
 class AnalysisResult:
     """Result of :func:`analyze`."""
 
@@ -44,6 +74,12 @@ class AnalysisResult:
     dir_count: int = 0
     top_dirs: list[Entry] = field(default_factory=list)
     top_files: list[Entry] = field(default_factory=list)
+    #: Direct subfolders of ``root``, largest first (drives the drill-down chart).
+    children: list[Entry] = field(default_factory=list)
+    #: Bytes in files directly inside ``root`` (not in any subfolder).
+    root_files_bytes: int = 0
+    #: Space per file extension, largest first (``path`` holds the extension label).
+    by_type: list[TypeEntry] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     elapsed: float = 0.0
 
@@ -59,6 +95,7 @@ class _WorkerState:
     files: list[tuple[int, str]] = field(default_factory=list)
     file_count: int = 0
     errors: list[str] = field(default_factory=list)
+    types: dict[str, list[int]] = field(default_factory=dict)
 
 
 def analyze(
@@ -69,6 +106,7 @@ def analyze(
     max_depth: int | None = None,
     cancel: threading.Event | None = None,
     progress: ProgressFn | None = None,
+    type_count: int = 8,
 ) -> AnalysisResult:
     """Compute folder sizes under ``root`` and return the largest folders and files.
 
@@ -80,6 +118,7 @@ def analyze(
             (sizes always include everything below).
         cancel: event that stops the scan early (partial results are returned).
         progress: callback invoked periodically from worker threads.
+        type_count: file types reported individually before folding into "Other".
     """
     started = time.perf_counter()
     root = os.path.abspath(root)
@@ -120,6 +159,9 @@ def analyze(
                                 size = st.st_size
                                 own += size
                                 nfiles += 1
+                                t = state.types.setdefault(file_type(e.name), [0, 0])
+                                t[0] += size
+                                t[1] += 1
                                 if len(state.files) < top:
                                     heapq.heappush(state.files, (size, e.path))
                                 elif size > state.files[0][0]:
@@ -154,12 +196,17 @@ def analyze(
     own: dict[str, int] = {}
     parent: dict[str, str] = {}
     files: list[tuple[int, str]] = []
+    types: dict[str, list[int]] = {}
     result = AnalysisResult(root=root)
     for s in states:
         own.update(s.own)
         parent.update(s.parent)
         files.extend(s.files)
         result.file_count += s.file_count
+        for ext, (b, c) in s.types.items():
+            agg = types.setdefault(ext, [0, 0])
+            agg[0] += b
+            agg[1] += c
         result.errors.extend(s.errors)
 
     totals = dict(own)
@@ -177,6 +224,10 @@ def analyze(
     )
     result.top_dirs = [Entry(p, b) for b, p in heapq.nlargest(top, candidates)]
     result.top_files = [Entry(p, b) for b, p in heapq.nlargest(top, files)]
+    result.by_type = top_types(types, n=type_count)
+    kids = ((totals[d], d) for d, par in parent.items() if par == root and d in totals)
+    result.children = [Entry(p, b) for b, p in heapq.nlargest(top, kids)]
+    result.root_files_bytes = own.get(root, 0)
     result.total_bytes = totals.get(root, 0)
     result.dir_count = max(0, len(own) - 1)
     result.elapsed = time.perf_counter() - started
@@ -199,3 +250,5 @@ def export_csv(result: AnalysisResult, path: str | Path) -> None:
             writer.writerow(["folder", e.path, e.bytes])
         for e in result.top_files:
             writer.writerow(["file", e.path, e.bytes])
+        for t in result.by_type:
+            writer.writerow(["type", t.ext, t.bytes])
